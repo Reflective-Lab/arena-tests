@@ -1,0 +1,16 @@
+[package]
+name = "cross-extension-smoke"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish = false
+
+[lib]
+path = "src/lib.rs"
+
+[dev-dependencies]
+converge-core      = { workspace = true }
+converge-kernel    = { workspace = true }
+converge-pack      = { workspace = true }
+tokio              = { workspace = true }
