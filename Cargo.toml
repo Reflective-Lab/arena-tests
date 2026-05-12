@@ -11,18 +11,18 @@ publish = false
 
 [workspace.dependencies]
 # Platform under test — local paths (workspace floor at 3.8.1 / 1.5.0 / 0.7.0).
-converge-core         = { path = "../platform/converge/crates/core" }
-converge-pack         = { path = "../platform/converge/crates/pack" }
-converge-kernel       = { path = "../platform/converge/crates/kernel" }
-converge-model        = { path = "../platform/converge/crates/model" }
-converge-provider     = { path = "../platform/converge/crates/provider" }
-converge-runtime      = { path = "../platform/converge/crates/runtime" }
-converge-storage      = { path = "../platform/converge/crates/storage" }
+converge-core         = { path = "../bedrock-platform/converge/crates/core" }
+converge-pack         = { path = "../bedrock-platform/converge/crates/pack" }
+converge-kernel       = { path = "../bedrock-platform/converge/crates/kernel" }
+converge-model        = { path = "../bedrock-platform/converge/crates/model" }
+converge-provider     = { path = "../bedrock-platform/converge/crates/provider" }
+converge-runtime      = { path = "../bedrock-platform/converge/crates/runtime" }
+converge-storage      = { path = "../bedrock-platform/converge/crates/storage" }
 
 # Extensions — wire any subset under test.
-converge-arbiter-policy   = { path = "../extensions/arbiter-policy/crates/arbiter" }
-converge-mnemos-knowledge = { path = "../extensions/mnemos-knowledge/crates/mnemos" }
-converge-prism-analytics  = { path = "../extensions/prism-analytics/crates/prism" }
+converge-arbiter-policy   = { path = "../mosaic-extensions/arbiter-policy/crates/arbiter" }
+converge-mnemos-knowledge = { path = "../mosaic-extensions/mnemos-knowledge/crates/mnemos" }
+converge-prism-analytics  = { path = "../mosaic-extensions/prism-analytics/crates/prism" }
 converge-atelier-domain   = { path = "../atelier-showcase/crates/atelier-domain" }
 
 # Test utilities
@@ -39,18 +39,18 @@ all = "warn"
 
 # Mirror the platform's [patch.crates-io] policy so transitive deps resolve to local head.
 [patch.crates-io]
-converge-core              = { path = "../platform/converge/crates/core" }
-converge-pack              = { path = "../platform/converge/crates/pack" }
-converge-kernel            = { path = "../platform/converge/crates/kernel" }
-converge-model             = { path = "../platform/converge/crates/model" }
-converge-provider          = { path = "../platform/converge/crates/provider" }
-converge-runtime           = { path = "../platform/converge/crates/runtime" }
-converge-storage           = { path = "../platform/converge/crates/storage" }
-converge-experience        = { path = "../platform/converge/crates/experience" }
-converge-optimization      = { path = "../platform/converge/crates/optimization" }
-converge-protocol          = { path = "../platform/converge/crates/protocol" }
-converge-client            = { path = "../platform/converge/crates/client" }
-converge-arbiter-policy    = { path = "../extensions/arbiter-policy/crates/arbiter" }
-converge-mnemos-knowledge  = { path = "../extensions/mnemos-knowledge/crates/mnemos" }
-converge-prism-analytics   = { path = "../extensions/prism-analytics/crates/prism" }
+converge-core              = { path = "../bedrock-platform/converge/crates/core" }
+converge-pack              = { path = "../bedrock-platform/converge/crates/pack" }
+converge-kernel            = { path = "../bedrock-platform/converge/crates/kernel" }
+converge-model             = { path = "../bedrock-platform/converge/crates/model" }
+converge-provider          = { path = "../bedrock-platform/converge/crates/provider" }
+converge-runtime           = { path = "../bedrock-platform/converge/crates/runtime" }
+converge-storage           = { path = "../bedrock-platform/converge/crates/storage" }
+converge-experience        = { path = "../bedrock-platform/converge/crates/experience" }
+converge-optimization      = { path = "../bedrock-platform/converge/crates/optimization" }
+converge-protocol          = { path = "../bedrock-platform/converge/crates/protocol" }
+converge-client            = { path = "../bedrock-platform/converge/crates/client" }
+converge-arbiter-policy    = { path = "../mosaic-extensions/arbiter-policy/crates/arbiter" }
+converge-mnemos-knowledge  = { path = "../mosaic-extensions/mnemos-knowledge/crates/mnemos" }
+converge-prism-analytics   = { path = "../mosaic-extensions/prism-analytics/crates/prism" }
 converge-atelier-domain    = { path = "../atelier-showcase/crates/atelier-domain" }

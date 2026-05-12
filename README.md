@@ -14,7 +14,7 @@ Platform crates must not depend on extensions (the dependency graph is one-way: 
 ## Running
 
 ```sh
-cd ~/dev/stack/integration-tests
+cd ~/dev/reflective/stack/integration-tests
 cargo test --workspace
 ```
 
