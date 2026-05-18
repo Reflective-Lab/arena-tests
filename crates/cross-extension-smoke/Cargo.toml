@@ -10,7 +10,14 @@ publish = false
 path = "src/lib.rs"
 
 [dev-dependencies]
+arbiter            = { package = "converge-arbiter-policy", path = "../../../mosaic-extensions/arbiter-policy/crates/arbiter", features = ["analysis"] }
+arena-intent-cases = { workspace = true }
+chrono             = { workspace = true }
 converge-core      = { workspace = true }
 converge-kernel    = { workspace = true }
 converge-pack      = { workspace = true }
+organism-intent    = { workspace = true }
+organism-pack      = { workspace = true }
+organism-runtime   = { workspace = true }
+serde_json         = { workspace = true }
 tokio              = { workspace = true }

@@ -1,6 +1,9 @@
 [workspace]
 resolver = "2"
-members = ["crates/cross-extension-smoke"]
+members = [
+    "crates/cross-extension-smoke",
+    "crates/intent-cases",
+]
 
 [workspace.package]
 version = "0.1.0"
@@ -24,12 +27,17 @@ converge-arbiter-policy   = { path = "../mosaic-extensions/arbiter-policy/crates
 converge-mnemos-knowledge = { path = "../mosaic-extensions/mnemos-knowledge/crates/mnemos" }
 converge-prism-analytics  = { path = "../mosaic-extensions/prism-analytics/crates/prism" }
 converge-atelier-domain   = { path = "../atelier-showcase/crates/atelier-domain" }
+organism-pack             = { path = "../bedrock-platform/organism/crates/pack" }
+organism-intent           = { path = "../bedrock-platform/organism/crates/intent" }
+organism-runtime          = { path = "../bedrock-platform/organism/crates/runtime" }
+arena-intent-cases        = { path = "crates/intent-cases" }
 
 # Test utilities
 tokio    = { version = "1", features = ["full"] }
 anyhow   = "1"
 serde    = { version = "1", features = ["derive"] }
 serde_json = "1"
+chrono = { version = "0.4", features = ["serde"] }
 
 [workspace.lints.rust]
 unsafe_code = "forbid"
@@ -54,3 +62,6 @@ converge-arbiter-policy    = { path = "../mosaic-extensions/arbiter-policy/crate
 converge-mnemos-knowledge  = { path = "../mosaic-extensions/mnemos-knowledge/crates/mnemos" }
 converge-prism-analytics   = { path = "../mosaic-extensions/prism-analytics/crates/prism" }
 converge-atelier-domain    = { path = "../atelier-showcase/crates/atelier-domain" }
+organism-pack              = { path = "../bedrock-platform/organism/crates/pack" }
+organism-intent            = { path = "../bedrock-platform/organism/crates/intent" }
+organism-runtime           = { path = "../bedrock-platform/organism/crates/runtime" }

@@ -11,6 +11,14 @@ Platform crates must not depend on extensions (the dependency graph is one-way: 
 - `crates/cross-extension-smoke/` — first member. Lib is empty; tests live in `tests/`.
 - Add a new member crate per scenario as the suite grows (e.g., `crates/mnemos-arbiter-flow`, `crates/manifold-ferrox-budget`).
 
+Current claim-portfolio coverage:
+
+- Expense non-finance high-value commit exemplar.
+- Strict HITL rejection when approval would not change the Cedar decision.
+- Vendor due-diligence gate.
+- Flow phase commit gate.
+- Data-classification PII block.
+
 ## Running
 
 ```sh
