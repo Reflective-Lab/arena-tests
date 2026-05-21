@@ -26,10 +26,13 @@ converge-storage      = { path = "../bedrock-platform/converge/crates/storage" }
 converge-arbiter-policy   = { path = "../mosaic-extensions/arbiter-policy/crates/arbiter" }
 converge-mnemos-knowledge = { path = "../mosaic-extensions/mnemos-knowledge/crates/mnemos" }
 converge-prism-analytics  = { path = "../mosaic-extensions/prism-analytics/crates/prism" }
+prism                     = { package = "converge-prism-analytics", path = "../mosaic-extensions/prism-analytics/crates/prism" }
 converge-atelier-domain   = { path = "../atelier-showcase/crates/atelier-domain" }
 organism-pack             = { path = "../bedrock-platform/organism/crates/pack" }
 organism-intent           = { path = "../bedrock-platform/organism/crates/intent" }
+organism-planning         = { path = "../bedrock-platform/organism/crates/planning" }
 organism-runtime          = { path = "../bedrock-platform/organism/crates/runtime" }
+prio-agent-ops            = { path = "../bedrock-platform/helms/crates/prio-agent-ops" }
 arena-intent-cases        = { path = "crates/intent-cases" }
 
 # Test utilities
