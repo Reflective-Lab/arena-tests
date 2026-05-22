@@ -46,8 +46,10 @@
 use std::process::ExitCode;
 
 use clap::Parser;
-use embassy_gleif::{GleifProvider, GleifRequest, Lei, LiveGleifProvider};
-use embassy_ofac_sls::{OfacSlsProvider, OfacSlsRequest, StubOfacSlsProvider};
+use embassy_gleif::{GleifProvider, GleifRequest, Lei, LiveGleifProvider, StubGleifProvider};
+use embassy_ofac_sls::{
+    LiveOfacSlsProvider, OfacSlsProvider, OfacSlsRequest, StubOfacSlsProvider,
+};
 use embassy_pack::{CallContext, SanctionsSubject};
 
 #[derive(Parser, Debug)]
@@ -69,10 +71,10 @@ struct Cli {
     #[arg(long, default_value = "529900T8BM49AURSDO55")]
     lei: String,
 
-    /// Accept stub Embassy providers. Without this flag the scenario
-    /// exits non-zero because Embassy ports do not yet ship live
-    /// providers — running them silently against stubs would be the
-    /// theatre this stack prohibits.
+    /// Run against the deterministic stub Embassy providers instead of
+    /// live network calls. Useful for offline / CI runs where the
+    /// outbound network to api.gleif.org or treasury.gov is unreachable.
+    /// Default is REAL LIVE for both Embassy legs.
     #[arg(long)]
     mock_ok: bool,
 }
@@ -83,38 +85,13 @@ async fn main() -> ExitCode {
 
     print_banner(&cli);
 
-    // The OFAC SDN port still ships stub-only. GLEIF now has a live
-    // provider (`LiveGleifProvider`), so by default the binary calls
-    // the real GLEIF API for identity but cannot screen for sanctions
-    // without operator consent to use the stub OFAC provider. The
-    // refusal stays until OFAC has a live provider too.
-    if !cli.mock_ok {
-        eprintln!();
-        eprintln!("ERROR: REAL-by-default refused.");
-        eprintln!();
-        eprintln!(
-            "  GLEIF identity lookup now runs LIVE via LiveGleifProvider\n  \
-            (api.gleif.org, no auth required). OFAC SDN screening still\n  \
-            ships stub-only (StubOfacSlsProvider); a live provider over\n  \
-            the published OFAC SDN feed is the next move to close G1."
-        );
-        eprintln!();
-        eprintln!(
-            "  Gap reference: Embassy-stubs-only in\n  \
-            ~/dev/reflective/stack/mosaic-extensions/kb/Standards/Real-by-Default \
-Connections.md\n  \
-            G1 in ~/dev/reflective/marquee-apps/shoal-meta/kb/portfolio-stretch.md"
-        );
-        eprintln!();
-        eprintln!(
-            "  Re-run with `--mock-ok` to proceed with LIVE GLEIF + STUB OFAC.\n  \
-            Output labels each step's mode explicitly so the audit trail is\n  \
-            honest about which evidence is live and which is contract-shape."
-        );
-        return ExitCode::from(2);
-    }
-
-    print_mode_table();
+    // Both Embassy legs are now live: GLEIF identity via
+    // LiveGleifProvider (api.gleif.org), OFAC screening via
+    // LiveOfacSlsProvider (downloads the canonical SDN.CSV from
+    // treasury.gov). --mock-ok is no longer required; it is kept as
+    // an explicit opt-out for offline / CI scenarios that cannot
+    // reach the network.
+    print_mode_table(cli.mock_ok);
 
     match run_scenario(&cli).await {
         Ok(()) => ExitCode::SUCCESS,
@@ -134,19 +111,30 @@ fn print_banner(cli: &Cli) {
     println!(
         "  mode:         {}",
         if cli.mock_ok {
-            "MOCK-OK (Embassy stubs accepted)"
+            "MOCK-OK (Embassy stub providers; offline-safe)"
         } else {
-            "REAL (will refuse to run on stubs)"
+            "REAL LIVE (api.gleif.org + treasury.gov SDN.CSV)"
         }
     );
     println!("══════════════════════════════════════════════════════════════════════");
 }
 
-fn print_mode_table() {
+fn print_mode_table(mock_ok: bool) {
+    let (gleif_label, ofac_label) = if mock_ok {
+        (
+            "CONTRACT-SHAPE  (StubGleifProvider; offline)",
+            "CONTRACT-SHAPE  (StubOfacSlsProvider; offline)",
+        )
+    } else {
+        (
+            "REAL LIVE       (LiveGleifProvider → api.gleif.org)",
+            "REAL LIVE       (LiveOfacSlsProvider → treasury.gov SDN.CSV)",
+        )
+    };
     println!();
     println!("Subsystem resource declaration:");
-    println!("  GLEIF identity   : REAL LIVE       (LiveGleifProvider → api.gleif.org)");
-    println!("  OFAC screening   : CONTRACT-SHAPE  (StubOfacSlsProvider; live provider pending)");
+    println!("  GLEIF identity   : {gleif_label}");
+    println!("  OFAC screening   : {ofac_label}");
     println!("  Decision logic   : LOCAL REAL");
     println!("  Causal record    : LOCAL REAL      (in-memory; Mnemos client pending)");
     println!("  SMT non-bypass   : DEFERRED        (see policies/no-sanctioned-onboarding.cedar)");
@@ -161,12 +149,20 @@ async fn run_scenario(cli: &Cli) -> Result<(), Box<dyn std::error::Error>> {
         causal_chain.borrow_mut().push(format!("[{:>3}] {step}", n));
     };
 
-    // ───────────────── Step 1: GLEIF identity lookup (LIVE) ──────────
-    println!("── Step 1: identity lookup via Embassy GLEIF (LIVE api.gleif.org) ────");
+    // ───────────────── Step 1: GLEIF identity lookup ─────────────────
+    let gleif_header = if cli.mock_ok {
+        "── Step 1: identity lookup via Embassy GLEIF (STUB; offline) ─────────"
+    } else {
+        "── Step 1: identity lookup via Embassy GLEIF (LIVE api.gleif.org) ────"
+    };
+    println!("{gleif_header}");
     let lei = Lei::parse(&cli.lei).map_err(|e| format!("invalid LEI: {e}"))?;
-    let gleif_provider = LiveGleifProvider::new();
     let gleif_request = GleifRequest::Lookup { lei: lei.clone() };
-    let gleif_response = gleif_provider.fetch(&gleif_request, &ctx).await?;
+    let gleif_response: embassy_gleif::GleifResponse = if cli.mock_ok {
+        StubGleifProvider.fetch(&gleif_request, &ctx).await?
+    } else {
+        LiveGleifProvider::new().fetch(&gleif_request, &ctx).await?
+    };
     if gleif_response.records.is_empty() {
         eprintln!("  no entity found for LEI {}", lei.as_str());
         record_step("identity: no GLEIF record");
@@ -185,12 +181,20 @@ async fn run_scenario(cli: &Cli) -> Result<(), Box<dyn std::error::Error>> {
 
     // ───────────────── Step 2: OFAC SDN screening ─────────────────
     println!();
-    println!("── Step 2: sanctions screening via Embassy OFAC-SLS ──────────────────");
+    let ofac_header = if cli.mock_ok {
+        "── Step 2: sanctions screening via Embassy OFAC-SLS (STUB; offline) ──"
+    } else {
+        "── Step 2: sanctions screening via Embassy OFAC-SLS (LIVE SDN.CSV) ───"
+    };
+    println!("{ofac_header}");
     let subject = SanctionsSubject::parse(&cli.counterparty)
         .map_err(|e| format!("invalid subject: {e}"))?;
-    let ofac_provider = StubOfacSlsProvider;
     let ofac_request = OfacSlsRequest::Screen { subject };
-    let ofac_response = ofac_provider.screen(&ofac_request, &ctx).await?;
+    let ofac_response: embassy_ofac_sls::OfacSlsResponse = if cli.mock_ok {
+        StubOfacSlsProvider.screen(&ofac_request, &ctx).await?
+    } else {
+        LiveOfacSlsProvider::new().screen(&ofac_request, &ctx).await?
+    };
     let hit = ofac_response.records.first();
     if let Some(obs) = hit {
         println!("  HIT");
@@ -229,15 +233,17 @@ async fn run_scenario(cli: &Cli) -> Result<(), Box<dyn std::error::Error>> {
     }
     println!();
     println!("══════════════════════════════════════════════════════════════════════");
-    println!(
-        "Resource declaration: {} (Embassy stubs accepted via --mock-ok). \n\
-         A LIVE run requires a real Embassy provider — see Cargo.toml header.",
-        if hit.is_some() {
-            "DENY on stub OFAC hit"
-        } else {
-            "ALLOW on stub clean screen"
-        }
-    );
+    let mode_tag = if cli.mock_ok {
+        "Embassy stubs (offline)"
+    } else {
+        "Embassy LIVE (api.gleif.org + treasury.gov SDN.CSV)"
+    };
+    let outcome_tag = if hit.is_some() {
+        "DENY on OFAC hit"
+    } else {
+        "ALLOW on clean OFAC screen"
+    };
+    println!("Resource declaration: {outcome_tag} ({mode_tag}).");
     println!("══════════════════════════════════════════════════════════════════════");
 
     Ok(())

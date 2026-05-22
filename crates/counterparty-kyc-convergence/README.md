@@ -23,7 +23,7 @@ Per `~/dev/reflective/stack/mosaic-extensions/kb/Standards/Real-by-Default Conne
 | Subsystem | Mode today | Notes |
 |---|---|---|
 | GLEIF identity lookup | **REAL LIVE** | `LiveGleifProvider` calling `https://api.gleif.org/api/v1/lei-records/{lei}` (CC0, no auth). Verified end-to-end against Apple Inc.'s LEI `HWUPKR0MPOU8FGXBT394` on 2026-05-22 — returns typed `Observation<LegalEntity>` with `vendor: live_gleif`. |
-| OFAC SDN screening | **CONTRACT-SHAPE** | `StubOfacSlsProvider`. Live provider over the OFAC SDN feed is the next step. Gap: G1. |
+| OFAC SDN screening | **REAL LIVE** | `LiveOfacSlsProvider` downloading the canonical SDN.CSV from `treasury.gov` (no auth required) and matching by exact / substring name. Verified end-to-end against the real SDN: `GAZPROM` → fuzzy match on `GAZPROMBANK JOINT STOCK COMPANY`. |
 | Decision logic | **LOCAL REAL** | Plain Rust over typed `SanctionsHit` payload. |
 | Causal evidence chain | **LOCAL REAL** | In-memory chain printed at end of run. Full Mnemos `agentic::causal` write awaits the Mnemos client wiring. Gap: G3 / Mnemos agentic memory dark. |
 | Soter SMT proof of non-bypass | **DEFERRED** | `policies/no-sanctioned-onboarding.cedar` included as target. Wiring requires extending `arbiter::ContextIn` to carry `sanctions_hit_present`; cedar-smt-analysis is the pattern. |
