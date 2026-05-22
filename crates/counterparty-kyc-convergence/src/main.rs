@@ -46,7 +46,7 @@
 use std::process::ExitCode;
 
 use clap::Parser;
-use embassy_gleif::{GleifProvider, GleifRequest, Lei, StubGleifProvider};
+use embassy_gleif::{GleifProvider, GleifRequest, Lei, LiveGleifProvider};
 use embassy_ofac_sls::{OfacSlsProvider, OfacSlsRequest, StubOfacSlsProvider};
 use embassy_pack::{CallContext, SanctionsSubject};
 
@@ -83,16 +83,20 @@ async fn main() -> ExitCode {
 
     print_banner(&cli);
 
+    // The OFAC SDN port still ships stub-only. GLEIF now has a live
+    // provider (`LiveGleifProvider`), so by default the binary calls
+    // the real GLEIF API for identity but cannot screen for sanctions
+    // without operator consent to use the stub OFAC provider. The
+    // refusal stays until OFAC has a live provider too.
     if !cli.mock_ok {
         eprintln!();
         eprintln!("ERROR: REAL-by-default refused.");
         eprintln!();
         eprintln!(
-            "  This scenario requires LIVE Embassy providers for GLEIF identity\n  \
-            lookup and OFAC SDN screening. As of 2026-05-22 the only available\n  \
-            providers are StubGleifProvider and StubOfacSlsProvider — running\n  \
-            them silently in place of real evidence is the failure mode the\n  \
-            Real-by-Default Connections standard prohibits."
+            "  GLEIF identity lookup now runs LIVE via LiveGleifProvider\n  \
+            (api.gleif.org, no auth required). OFAC SDN screening still\n  \
+            ships stub-only (StubOfacSlsProvider); a live provider over\n  \
+            the published OFAC SDN feed is the next move to close G1."
         );
         eprintln!();
         eprintln!(
@@ -103,9 +107,9 @@ Connections.md\n  \
         );
         eprintln!();
         eprintln!(
-            "  To proceed against stubs anyway (offline / contract-shape demo),\n  \
-            re-run with `--mock-ok`. The output will clearly label every step\n  \
-            as CONTRACT-SHAPE."
+            "  Re-run with `--mock-ok` to proceed with LIVE GLEIF + STUB OFAC.\n  \
+            Output labels each step's mode explicitly so the audit trail is\n  \
+            honest about which evidence is live and which is contract-shape."
         );
         return ExitCode::from(2);
     }
@@ -141,7 +145,7 @@ fn print_banner(cli: &Cli) {
 fn print_mode_table() {
     println!();
     println!("Subsystem resource declaration:");
-    println!("  GLEIF identity   : CONTRACT-SHAPE  (StubGleifProvider; live provider pending)");
+    println!("  GLEIF identity   : REAL LIVE       (LiveGleifProvider → api.gleif.org)");
     println!("  OFAC screening   : CONTRACT-SHAPE  (StubOfacSlsProvider; live provider pending)");
     println!("  Decision logic   : LOCAL REAL");
     println!("  Causal record    : LOCAL REAL      (in-memory; Mnemos client pending)");
@@ -157,10 +161,10 @@ async fn run_scenario(cli: &Cli) -> Result<(), Box<dyn std::error::Error>> {
         causal_chain.borrow_mut().push(format!("[{:>3}] {step}", n));
     };
 
-    // ───────────────── Step 1: GLEIF identity lookup ─────────────────
-    println!("── Step 1: identity lookup via Embassy GLEIF ─────────────────────────");
+    // ───────────────── Step 1: GLEIF identity lookup (LIVE) ──────────
+    println!("── Step 1: identity lookup via Embassy GLEIF (LIVE api.gleif.org) ────");
     let lei = Lei::parse(&cli.lei).map_err(|e| format!("invalid LEI: {e}"))?;
-    let gleif_provider = StubGleifProvider;
+    let gleif_provider = LiveGleifProvider::new();
     let gleif_request = GleifRequest::Lookup { lei: lei.clone() };
     let gleif_response = gleif_provider.fetch(&gleif_request, &ctx).await?;
     if gleif_response.records.is_empty() {

@@ -22,7 +22,7 @@ Per `~/dev/reflective/stack/mosaic-extensions/kb/Standards/Real-by-Default Conne
 
 | Subsystem | Mode today | Notes |
 |---|---|---|
-| GLEIF identity lookup | **CONTRACT-SHAPE** | `StubGleifProvider`. Live HTTP provider against `https://api.gleif.org/api/v1/lei-records` is the documented next step. Gap: G1 / Embassy-stubs-only. |
+| GLEIF identity lookup | **REAL LIVE** | `LiveGleifProvider` calling `https://api.gleif.org/api/v1/lei-records/{lei}` (CC0, no auth). Verified end-to-end against Apple Inc.'s LEI `HWUPKR0MPOU8FGXBT394` on 2026-05-22 — returns typed `Observation<LegalEntity>` with `vendor: live_gleif`. |
 | OFAC SDN screening | **CONTRACT-SHAPE** | `StubOfacSlsProvider`. Live provider over the OFAC SDN feed is the next step. Gap: G1. |
 | Decision logic | **LOCAL REAL** | Plain Rust over typed `SanctionsHit` payload. |
 | Causal evidence chain | **LOCAL REAL** | In-memory chain printed at end of run. Full Mnemos `agentic::causal` write awaits the Mnemos client wiring. Gap: G3 / Mnemos agentic memory dark. |
