@@ -1,6 +1,7 @@
 [workspace]
 resolver = "2"
 members = [
+    "crates/counterparty-kyc-convergence",
     "crates/cross-extension-smoke",
     "crates/intent-cases",
 ]
