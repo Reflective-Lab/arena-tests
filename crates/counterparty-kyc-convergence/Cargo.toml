@@ -26,6 +26,8 @@ path = "src/main.rs"
 [dependencies]
 embassy-pack = { package = "converge-embassy-pack", path = "../../../mosaic-extensions/embassy-ports/crates/pack", version = "1.3.0" }
 embassy-ofac-sls = { package = "converge-embassy-ofac-sls", path = "../../../mosaic-extensions/embassy-ports/crates/ofac-sls", version = "0.1.0", features = ["live"] }
+embassy-eu-sanctions = { package = "converge-embassy-eu-sanctions", path = "../../../mosaic-extensions/embassy-ports/crates/eu-sanctions", version = "0.1.0", features = ["live"] }
+embassy-commerce-csl = { package = "converge-embassy-commerce-csl", path = "../../../mosaic-extensions/embassy-ports/crates/commerce-csl", version = "0.1.0", features = ["live"] }
 embassy-gleif = { package = "converge-embassy-gleif", path = "../../../mosaic-extensions/embassy-ports/crates/gleif", version = "0.1.0", features = ["live"] }
 
 clap = { version = "4.5", features = ["derive"] }

@@ -46,6 +46,12 @@
 use std::process::ExitCode;
 
 use clap::Parser;
+use embassy_commerce_csl::{
+    CommerceCslProvider, CommerceCslRequest, LiveCommerceCslProvider, StubCommerceCslProvider,
+};
+use embassy_eu_sanctions::{
+    EuSanctionsProvider, EuSanctionsRequest, LiveEuSanctionsProvider, StubEuSanctionsProvider,
+};
 use embassy_gleif::{GleifProvider, GleifRequest, Lei, LiveGleifProvider, StubGleifProvider};
 use embassy_ofac_sls::{
     LiveOfacSlsProvider, OfacSlsProvider, OfacSlsRequest, StubOfacSlsProvider,
@@ -120,21 +126,27 @@ fn print_banner(cli: &Cli) {
 }
 
 fn print_mode_table(mock_ok: bool) {
-    let (gleif_label, ofac_label) = if mock_ok {
-        (
+    let labels = if mock_ok {
+        [
             "CONTRACT-SHAPE  (StubGleifProvider; offline)",
             "CONTRACT-SHAPE  (StubOfacSlsProvider; offline)",
-        )
+            "CONTRACT-SHAPE  (StubEuSanctionsProvider; offline)",
+            "CONTRACT-SHAPE  (StubCommerceCslProvider; offline)",
+        ]
     } else {
-        (
+        [
             "REAL LIVE       (LiveGleifProvider → api.gleif.org)",
             "REAL LIVE       (LiveOfacSlsProvider → treasury.gov SDN.CSV)",
-        )
+            "REAL LIVE       (LiveEuSanctionsProvider → OpenSanctions mirror of EU FSF)",
+            "REAL LIVE       (LiveCommerceCslProvider → OpenSanctions mirror of US Trade CSL)",
+        ]
     };
     println!();
     println!("Subsystem resource declaration:");
-    println!("  GLEIF identity   : {gleif_label}");
-    println!("  OFAC screening   : {ofac_label}");
+    println!("  GLEIF identity   : {}", labels[0]);
+    println!("  OFAC screening   : {}", labels[1]);
+    println!("  EU sanctions     : {}", labels[2]);
+    println!("  Commerce CSL     : {}", labels[3]);
     println!("  Decision logic   : LOCAL REAL");
     println!("  Causal record    : LOCAL REAL      (in-memory; Mnemos client pending)");
     println!("  SMT non-bypass   : DEFERRED        (see policies/no-sanctioned-onboarding.cedar)");
@@ -179,47 +191,97 @@ async fn run_scenario(cli: &Cli) -> Result<(), Box<dyn std::error::Error>> {
         ));
     }
 
-    // ───────────────── Step 2: OFAC SDN screening ─────────────────
+    // ───────────────── Step 2: sanctions screening (3 sources) ───────
     println!();
-    let ofac_header = if cli.mock_ok {
-        "── Step 2: sanctions screening via Embassy OFAC-SLS (STUB; offline) ──"
-    } else {
-        "── Step 2: sanctions screening via Embassy OFAC-SLS (LIVE SDN.CSV) ───"
-    };
-    println!("{ofac_header}");
     let subject = SanctionsSubject::parse(&cli.counterparty)
         .map_err(|e| format!("invalid subject: {e}"))?;
-    let ofac_request = OfacSlsRequest::Screen { subject };
+
+    // ----- 2a: OFAC -----
+    let ofac_header = if cli.mock_ok {
+        "── Step 2a: OFAC-SLS (STUB; offline) ─────────────────────────────────"
+    } else {
+        "── Step 2a: OFAC-SLS (LIVE SDN.CSV; treasury.gov) ────────────────────"
+    };
+    println!("{ofac_header}");
+    let ofac_request = OfacSlsRequest::Screen {
+        subject: subject.clone(),
+    };
     let ofac_response: embassy_ofac_sls::OfacSlsResponse = if cli.mock_ok {
         StubOfacSlsProvider.screen(&ofac_request, &ctx).await?
     } else {
         LiveOfacSlsProvider::new().screen(&ofac_request, &ctx).await?
     };
-    let hit = ofac_response.records.first();
-    if let Some(obs) = hit {
-        println!("  HIT");
-        println!("  request_hash:  {}", obs.request_hash);
-        println!("  observation:   {}", obs.observation_id);
-        println!("  list_name:     {}", obs.content.list_name);
-        println!("  match_type:    {:?}", obs.content.match_type);
-        println!("  match_score:   {:.2}", obs.content.match_score);
-        record_step(&format!(
-            "screening: OFAC {:?} match on '{}' (score {:.2})",
-            obs.content.match_type, obs.content.subject_name, obs.content.match_score
-        ));
-    } else {
-        println!("  CLEAN  (no records returned)");
-        record_step("screening: OFAC clean (zero records)");
-    }
+    let ofac_hit = report_sanctions_hits(
+        "OFAC",
+        &ofac_response.records.iter().map(|o| &o.content).collect::<Vec<_>>(),
+        &mut |s| record_step(s),
+    );
 
-    // ───────────────── Step 3: typed decision ─────────────────
+    // ----- 2b: EU sanctions -----
+    println!();
+    let eu_header = if cli.mock_ok {
+        "── Step 2b: EU FSF (STUB; offline) ───────────────────────────────────"
+    } else {
+        "── Step 2b: EU FSF (LIVE; OpenSanctions mirror of EU consolidated) ───"
+    };
+    println!("{eu_header}");
+    let eu_request = EuSanctionsRequest::Screen {
+        subject: subject.clone(),
+    };
+    let eu_response: embassy_eu_sanctions::EuSanctionsResponse = if cli.mock_ok {
+        StubEuSanctionsProvider.screen(&eu_request, &ctx).await?
+    } else {
+        LiveEuSanctionsProvider::new().screen(&eu_request, &ctx).await?
+    };
+    let eu_hit = report_sanctions_hits(
+        "EU",
+        &eu_response.records.iter().map(|o| &o.content).collect::<Vec<_>>(),
+        &mut |s| record_step(s),
+    );
+
+    // ----- 2c: US Commerce CSL -----
+    println!();
+    let csl_header = if cli.mock_ok {
+        "── Step 2c: US Commerce CSL (STUB; offline) ──────────────────────────"
+    } else {
+        "── Step 2c: US Commerce CSL (LIVE; OpenSanctions mirror of US Trade CSL) ─"
+    };
+    println!("{csl_header}");
+    let csl_request = CommerceCslRequest::Screen { subject };
+    let csl_response: embassy_commerce_csl::CommerceCslResponse = if cli.mock_ok {
+        StubCommerceCslProvider.screen(&csl_request, &ctx).await?
+    } else {
+        LiveCommerceCslProvider::new()
+            .screen(&csl_request, &ctx)
+            .await?
+    };
+    let csl_hit = report_sanctions_hits(
+        "Commerce CSL",
+        &csl_response
+            .records
+            .iter()
+            .map(|o| &o.content)
+            .collect::<Vec<_>>(),
+        &mut |s| record_step(s),
+    );
+
+    // ───────────────── Step 3: typed decision ─────────────────────────
     println!();
     println!("── Step 3: typed onboarding decision ─────────────────────────────────");
-    let decision = if hit.is_some() { "DENY" } else { "ALLOW" };
-    let reason = if hit.is_some() {
-        "OFAC sanctions hit present"
+    let hit = ofac_hit || eu_hit || csl_hit;
+    let decision = if hit { "DENY" } else { "ALLOW" };
+    let hit_sources: Vec<&str> = [
+        ("OFAC", ofac_hit),
+        ("EU", eu_hit),
+        ("Commerce CSL", csl_hit),
+    ]
+    .iter()
+    .filter_map(|(name, hit)| hit.then_some(*name))
+    .collect();
+    let reason = if hit {
+        format!("sanctions hit on {}", hit_sources.join(", "))
     } else {
-        "no sanctions hits across queried lists"
+        "no sanctions hits across OFAC / EU / Commerce".to_string()
     };
     println!("  decision: {decision}");
     println!("  reason:   {reason}");
@@ -236,15 +298,46 @@ async fn run_scenario(cli: &Cli) -> Result<(), Box<dyn std::error::Error>> {
     let mode_tag = if cli.mock_ok {
         "Embassy stubs (offline)"
     } else {
-        "Embassy LIVE (api.gleif.org + treasury.gov SDN.CSV)"
+        "Embassy LIVE (api.gleif.org + treasury.gov + EU FSF mirror + US Trade CSL mirror)"
     };
-    let outcome_tag = if hit.is_some() {
-        "DENY on OFAC hit"
+    let outcome_tag = if hit {
+        format!("DENY on sanctions hit ({})", hit_sources.join(", "))
     } else {
-        "ALLOW on clean OFAC screen"
+        "ALLOW on clean screen across all three sanctions sources".to_string()
     };
     println!("Resource declaration: {outcome_tag} ({mode_tag}).");
     println!("══════════════════════════════════════════════════════════════════════");
 
     Ok(())
+}
+
+/// Pretty-print sanctions hits for one source and accumulate causal-
+/// chain entries. Returns `true` if any hit was reported. Keeps the
+/// reporting consistent across OFAC / EU / Commerce so the audit
+/// output reads uniformly regardless of source.
+fn report_sanctions_hits(
+    source_label: &str,
+    hits: &[&embassy_pack::SanctionsHit],
+    record_step: &mut dyn FnMut(&str),
+) -> bool {
+    if hits.is_empty() {
+        println!("  CLEAN  (no records returned)");
+        record_step(&format!("screening: {source_label} clean (zero records)"));
+        return false;
+    }
+    for hit in hits {
+        println!("  HIT");
+        println!("  list_name:     {}", hit.list_name);
+        println!("  match_type:    {:?}", hit.match_type);
+        println!("  match_score:   {:.2}", hit.match_score);
+        if let Some(program) = &hit.list_program {
+            println!("  program:       {program}");
+        }
+        println!("  subject_name:  {}", hit.subject_name);
+        record_step(&format!(
+            "screening: {} {:?} match on '{}' (score {:.2})",
+            source_label, hit.match_type, hit.subject_name, hit.match_score
+        ));
+    }
+    true
 }
