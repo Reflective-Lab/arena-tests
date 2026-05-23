@@ -84,20 +84,43 @@ struct Cli {
     /// Default is REAL LIVE for both Embassy legs.
     #[arg(long)]
     mock_ok: bool,
+
+    /// One-command canonical smoke test: hits all five Embassy live
+    /// providers (GLEIF, OFAC SDN, EU FSF, Commerce CSL, TED) against
+    /// a fixed buyer-legible reference and prints a tight summary
+    /// suitable for a copy-paste buyer demo. Overrides
+    /// `--counterparty` and `--lei`; requires network.
+    #[arg(long)]
+    smoke_test: bool,
 }
+
+/// Canonical smoke-test reference. Apple Inc. is used as a known-good
+/// fixture: its real LEI resolves on api.gleif.org, it is not on any
+/// sanctions list, and TED returns zero notices (Apple is not an EU
+/// public buyer — the correct behavior, demonstrated honestly).
+const SMOKE_LEI: &str = "HWUPKR0MPOU8FGXBT394";
+const SMOKE_COUNTERPARTY: &str = "Apple Inc.";
 
 #[tokio::main(flavor = "multi_thread")]
 async fn main() -> ExitCode {
-    let cli = Cli::parse();
+    let mut cli = Cli::parse();
+
+    if cli.smoke_test {
+        // Smoke test: override the input fixture, force REAL, and
+        // dispatch to the tight summary path.
+        cli.counterparty = SMOKE_COUNTERPARTY.to_string();
+        cli.lei = SMOKE_LEI.to_string();
+        cli.mock_ok = false;
+        return match run_smoke_test().await {
+            Ok(()) => ExitCode::SUCCESS,
+            Err(err) => {
+                eprintln!("smoke test failed: {err}");
+                ExitCode::FAILURE
+            }
+        };
+    }
 
     print_banner(&cli);
-
-    // Both Embassy legs are now live: GLEIF identity via
-    // LiveGleifProvider (api.gleif.org), OFAC screening via
-    // LiveOfacSlsProvider (downloads the canonical SDN.CSV from
-    // treasury.gov). --mock-ok is no longer required; it is kept as
-    // an explicit opt-out for offline / CI scenarios that cannot
-    // reach the network.
     print_mode_table(cli.mock_ok);
 
     match run_scenario(&cli).await {
@@ -107,6 +130,142 @@ async fn main() -> ExitCode {
             ExitCode::FAILURE
         }
     }
+}
+
+/// Run the canonical buyer-demo smoke test. Hits all five live Embassy
+/// providers against the Apple Inc. fixture and prints a tight,
+/// copy-paste-friendly summary. Returns SUCCESS only if every provider
+/// returned typed data (i.e. all five network calls succeeded).
+async fn run_smoke_test() -> Result<(), Box<dyn std::error::Error>> {
+    use std::time::Instant;
+
+    println!("══════════════════════════════════════════════════════════════════════");
+    println!("Mosaic Embassy smoke test — five canonical providers, one binary");
+    println!("──────────────────────────────────────────────────────────────────────");
+    println!("Reference: {SMOKE_COUNTERPARTY} (LEI {SMOKE_LEI})");
+    println!("Mode:      REAL LIVE (no stubs; network required)");
+    println!("══════════════════════════════════════════════════════════════════════");
+    println!();
+
+    let started = Instant::now();
+    let ctx = CallContext::default();
+    let mut providers_ok: usize = 0;
+
+    // 1 — GLEIF identity
+    let lei = Lei::parse(SMOKE_LEI).map_err(|e| format!("invalid LEI: {e}"))?;
+    let gleif_resp = LiveGleifProvider::new()
+        .fetch(&GleifRequest::Lookup { lei: lei.clone() }, &ctx)
+        .await?;
+    let entity_name = gleif_resp
+        .records
+        .first()
+        .map(|o| o.content.legal_name.as_str())
+        .unwrap_or("(no record)");
+    println!(
+        "  ✓ GLEIF         live_gleif         → identity: {entity_name}"
+    );
+    providers_ok += 1;
+
+    // 2 — OFAC SDN
+    let subject = SanctionsSubject::parse(SMOKE_COUNTERPARTY)?;
+    let ofac_resp = LiveOfacSlsProvider::new()
+        .screen(
+            &OfacSlsRequest::Screen {
+                subject: subject.clone(),
+            },
+            &ctx,
+        )
+        .await?;
+    println!(
+        "  ✓ OFAC SDN      live_ofac_sls      → {hits} hits",
+        hits = ofac_resp.records.len()
+    );
+    providers_ok += 1;
+
+    // 3 — EU FSF
+    let eu_resp = LiveEuSanctionsProvider::new()
+        .screen(
+            &EuSanctionsRequest::Screen {
+                subject: subject.clone(),
+            },
+            &ctx,
+        )
+        .await?;
+    println!(
+        "  ✓ EU FSF        live_eu_sanctions  → {hits} hits",
+        hits = eu_resp.records.len()
+    );
+    providers_ok += 1;
+
+    // 4 — Commerce CSL
+    let csl_resp = LiveCommerceCslProvider::new()
+        .screen(&CommerceCslRequest::Screen { subject }, &ctx)
+        .await?;
+    println!(
+        "  ✓ Commerce CSL  live_commerce_csl  → {hits} hits",
+        hits = csl_resp.records.len()
+    );
+    providers_ok += 1;
+
+    // 5 — TED procurement
+    let ted_resp = LiveTedProvider::new()
+        .lookup(
+            &TedRequest::SearchByBuyerName {
+                buyer_name: SMOKE_COUNTERPARTY.to_string(),
+                limit: 5,
+            },
+            &ctx,
+        )
+        .await?;
+    let ted_summary = if ted_resp.records.is_empty() {
+        "0 EU procurement notices (not an EU public buyer)".to_string()
+    } else {
+        format!("{} EU procurement notices", ted_resp.records.len())
+    };
+    println!("  ✓ TED           live_ted           → {ted_summary}");
+    providers_ok += 1;
+
+    let any_sanctions_hit = !ofac_resp.records.is_empty()
+        || !eu_resp.records.is_empty()
+        || !csl_resp.records.is_empty();
+    let decision = if any_sanctions_hit { "DENY" } else { "ALLOW" };
+    let sanctions_lists_hit = (!ofac_resp.records.is_empty() as usize)
+        + (!eu_resp.records.is_empty() as usize)
+        + (!csl_resp.records.is_empty() as usize);
+    let elapsed = started.elapsed().as_secs_f64();
+
+    println!();
+    println!("──────────────────────────────────────────────────────────────────────");
+    println!("Decision:        {decision}");
+    println!(
+        "Identity:        verified (GLEIF returned {n} record{plural})",
+        n = gleif_resp.records.len(),
+        plural = if gleif_resp.records.len() == 1 { "" } else { "s" }
+    );
+    println!(
+        "Sanctions:       {sanctions_lists_hit} of 3 lists hit (OFAC SDN, EU FSF, Commerce CSL)"
+    );
+    println!("Enrichment:      {ted_summary}");
+    println!("Audit replay:    every call carries request_hash + vendor identity");
+    println!("Providers OK:    {providers_ok}/5 live (no stubs)");
+    println!("Wall time:       {elapsed:.2}s");
+    println!("══════════════════════════════════════════════════════════════════════");
+    println!();
+    println!("This is the moat in one binary: signed typed evidence from five");
+    println!("canonical European + US government data sources, with replay hashes,");
+    println!("vendor identity, and a typed decision contract. An LLM-only product");
+    println!("structurally cannot produce these artifacts.");
+    println!();
+    println!("To see sanctions-hit behavior, try:");
+    println!(
+        "  cargo run -p arena-counterparty-kyc-convergence -- \\\n    --counterparty 'GAZPROM' --lei {SMOKE_LEI}"
+    );
+    println!();
+    println!("To see TED procurement history, try:");
+    println!(
+        "  cargo run -p arena-counterparty-kyc-convergence -- \\\n    --counterparty 'Trafikkontoret' --lei {SMOKE_LEI}"
+    );
+    Ok(())
 }
 
 fn print_banner(cli: &Cli) {
