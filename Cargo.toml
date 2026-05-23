@@ -64,6 +64,10 @@ converge-protocol          = { path = "../bedrock-platform/converge/crates/proto
 converge-client            = { path = "../bedrock-platform/converge/crates/client" }
 converge-arbiter-policy    = { path = "../mosaic-extensions/arbiter-policy/crates/arbiter" }
 converge-mnemos-knowledge  = { path = "../mosaic-extensions/mnemos-knowledge/crates/mnemos" }
+# Local manifold carries the POST + xml + pagination features that
+# embassy-vies and embassy-ted depend on; drop this patch once a
+# manifold release with those features is on crates.io.
+converge-manifold-adapters = { path = "../mosaic-extensions/manifold-adapters/crates/manifold" }
 converge-prism-analytics   = { path = "../mosaic-extensions/prism-analytics/crates/prism" }
 converge-atelier-domain    = { path = "../atelier-showcase/crates/atelier-domain" }
 organism-pack              = { path = "../bedrock-platform/organism/crates/pack" }

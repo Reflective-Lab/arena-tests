@@ -57,6 +57,7 @@ use embassy_ofac_sls::{
     LiveOfacSlsProvider, OfacSlsProvider, OfacSlsRequest, StubOfacSlsProvider,
 };
 use embassy_pack::{CallContext, SanctionsSubject};
+use embassy_ted::{LiveTedProvider, StubTedProvider, TedProvider, TedRequest};
 
 #[derive(Parser, Debug)]
 #[command(
@@ -132,6 +133,7 @@ fn print_mode_table(mock_ok: bool) {
             "CONTRACT-SHAPE  (StubOfacSlsProvider; offline)",
             "CONTRACT-SHAPE  (StubEuSanctionsProvider; offline)",
             "CONTRACT-SHAPE  (StubCommerceCslProvider; offline)",
+            "CONTRACT-SHAPE  (StubTedProvider; offline)",
         ]
     } else {
         [
@@ -139,6 +141,7 @@ fn print_mode_table(mock_ok: bool) {
             "REAL LIVE       (LiveOfacSlsProvider → treasury.gov SDN.CSV)",
             "REAL LIVE       (LiveEuSanctionsProvider → OpenSanctions mirror of EU FSF)",
             "REAL LIVE       (LiveCommerceCslProvider → OpenSanctions mirror of US Trade CSL)",
+            "REAL LIVE       (LiveTedProvider → api.ted.europa.eu/v3; cursor-paginated)",
         ]
     };
     println!();
@@ -147,6 +150,7 @@ fn print_mode_table(mock_ok: bool) {
     println!("  OFAC screening   : {}", labels[1]);
     println!("  EU sanctions     : {}", labels[2]);
     println!("  Commerce CSL     : {}", labels[3]);
+    println!("  TED enrichment   : {}", labels[4]);
     println!("  Decision logic   : LOCAL REAL");
     println!("  Causal record    : LOCAL REAL      (in-memory; Mnemos client pending)");
     println!("  SMT non-bypass   : DEFERRED        (see policies/no-sanctioned-onboarding.cedar)");
@@ -265,9 +269,54 @@ async fn run_scenario(cli: &Cli) -> Result<(), Box<dyn std::error::Error>> {
         &mut |s| record_step(s),
     );
 
-    // ───────────────── Step 3: typed decision ─────────────────────────
+    // ─────────── Step 3: TED procurement-history enrichment ───────────
+    // KYC enrichment: has this counterparty issued EU public-sector
+    // contracts on TED? A "yes" is non-binding context, not a decision
+    // driver — but it surfaces real activity vs. a shell entity.
     println!();
-    println!("── Step 3: typed onboarding decision ─────────────────────────────────");
+    let ted_header = if cli.mock_ok {
+        "── Step 3: TED procurement history (STUB; offline) ───────────────────"
+    } else {
+        "── Step 3: TED procurement history (LIVE; api.ted.europa.eu/v3) ──────"
+    };
+    println!("{ted_header}");
+    let ted_request = TedRequest::SearchByBuyerName {
+        buyer_name: cli.counterparty.clone(),
+        limit: 5,
+    };
+    let ted_response: embassy_ted::TedResponse = if cli.mock_ok {
+        StubTedProvider.lookup(&ted_request, &ctx).await?
+    } else {
+        LiveTedProvider::new().lookup(&ted_request, &ctx).await?
+    };
+    if ted_response.records.is_empty() {
+        println!("  no TED procurement notices for buyer-name='{}'", cli.counterparty);
+        record_step(&format!(
+            "enrichment: TED 0 notices for '{}'",
+            cli.counterparty
+        ));
+    } else {
+        for (i, obs) in ted_response.records.iter().enumerate() {
+            let n = &obs.content;
+            println!(
+                "  [{}] {} ({:?}) | {} | {}",
+                i + 1,
+                n.notice_id.as_str(),
+                n.procurement_type,
+                n.country,
+                n.title.chars().take(60).collect::<String>(),
+            );
+        }
+        record_step(&format!(
+            "enrichment: TED {} notices for '{}'",
+            ted_response.records.len(),
+            cli.counterparty
+        ));
+    }
+
+    // ───────────────── Step 4: typed decision ─────────────────────────
+    println!();
+    println!("── Step 4: typed onboarding decision ─────────────────────────────────");
     let hit = ofac_hit || eu_hit || csl_hit;
     let decision = if hit { "DENY" } else { "ALLOW" };
     let hit_sources: Vec<&str> = [
@@ -287,9 +336,9 @@ async fn run_scenario(cli: &Cli) -> Result<(), Box<dyn std::error::Error>> {
     println!("  reason:   {reason}");
     record_step(&format!("decision: {decision} ({reason})"));
 
-    // ───────────────── Step 4: causal chain (in-memory Mnemos shape) ──
+    // ───────────────── Step 5: causal chain (in-memory Mnemos shape) ──
     println!();
-    println!("── Step 4: causal evidence chain ────────────────────────────────────");
+    println!("── Step 5: causal evidence chain ────────────────────────────────────");
     for line in causal_chain.borrow().iter() {
         println!("  {line}");
     }
