@@ -1,15 +1,26 @@
-# integration-tests
+# arena-tests
 
-Cross-extension integration tests for the Converge stack. This repo is the only place where the platform and extension crates are wired together in one workspace, so it can catch regressions that single-crate tests miss.
+Cross-extension integration and arena tests for the Reflective stack. This repo
+wires Bedrock and Mosaic crates together in one test-only workspace, so it can
+catch regressions and composition gaps that single-repo tests miss.
 
-## Why this lives here, not in `platform/`
+## Why this lives here, not in Bedrock or Mosaic
 
-Platform crates must not depend on extensions (the dependency graph is one-way: extensions → platform). Putting cross-extension tests inside any platform crate would invert that direction. This repo sits at the same level as `platform/` and `extensions/` and consumes both via `dev-dependencies` and a `[patch.crates-io]` block, so the platform stays clean while still getting integration coverage.
+Bedrock crates must not depend on Mosaic extensions. Putting cross-extension
+tests inside Converge, Organism, Axiom, or Helm would invert the dependency
+direction. This repo sits at the workspace root and consumes Bedrock plus
+Mosaic through local path dependencies, so the platform stays clean while still
+getting integration coverage.
 
 ## Layout
 
-- `crates/cross-extension-smoke/` — first member. Lib is empty; tests live in `tests/`.
-- Add a new member crate per scenario as the suite grows (e.g., `crates/mnemos-arbiter-flow`, `crates/manifold-ferrox-budget`).
+- `crates/cross-extension-smoke/` — smoke and composition tests; most logic
+  lives in `tests/`.
+- `crates/intent-cases/` — shared business-intent fixtures used by Organism
+  routing tests.
+- `crates/counterparty-kyc-convergence/` — live-by-default arena binary for
+  counterparty identity, sanctions, and procurement evidence.
+- Add a new member crate per scenario as the suite grows.
 
 Current claim-portfolio coverage:
 
@@ -22,21 +33,22 @@ Current claim-portfolio coverage:
 ## Running
 
 ```sh
-cd ~/dev/reflective/stack/integration-tests
+cd ~/dev/reflective/arena-tests
 cargo test --workspace
 ```
 
-This pulls every platform and extension crate from the local checkout. The first build is slow; incremental is fast.
+This pulls Bedrock, Mosaic, and Atelier crates from the local checkout. The
+first build is slow; incremental is fast.
 
 ## Adding a test
 
 1. Create a new member under `crates/<scenario>/` and add it to the root `Cargo.toml` `members` list.
-2. Pull whatever platform + extension crates your scenario needs from `[workspace.dependencies]`.
+2. Pull whatever Bedrock, Mosaic, or Atelier crates your scenario needs from `[workspace.dependencies]`.
 3. Put the actual test in `tests/<name>.rs` — keep `src/lib.rs` empty unless you need shared helpers.
 4. Run `cargo test -p <scenario>`.
 
 ## Contract
 
 - No production code. This is a test-only repo (`publish = false` everywhere).
-- Don't pull from crates.io for any platform/extension crate — always use the local path. If a `[patch.crates-io]` entry is missing for a transitive dep, add it.
+- Don't pull from crates.io for any Bedrock or Mosaic crate — always use the local path. If a `[patch.crates-io]` entry is missing for a transitive dep, add it.
 - Keep tests deterministic. Wall-clock comparisons must strip timestamps (see `engine_converges_deterministically` in `converge-core`'s test for the pattern).

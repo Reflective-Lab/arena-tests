@@ -5,7 +5,7 @@
 ## Quick demo
 
 ```bash
-cd ~/dev/reflective/stack/arena-tests
+cd ~/dev/reflective/arena-tests
 cargo run -p arena-counterparty-kyc-convergence -- --smoke-test
 ```
 
@@ -100,7 +100,7 @@ Output explicitly labels every step as `CONTRACT-SHAPE` so the audit trail stays
 
 ## REAL-by-default declaration
 
-Per [`~/dev/reflective/stack/mosaic-extensions/kb/Standards/Real-by-Default Connections.md`](../../../mosaic-extensions/kb/Standards/Real-by-Default%20Connections.md):
+Per [`~/dev/reflective/mosaic-extensions/kb/Standards/Real-by-Default Connections.md`](../../../stack/mosaic-extensions/kb/Standards/Real-by-Default%20Connections.md):
 
 | Subsystem | Mode | Notes |
 |---|---|---|
@@ -125,7 +125,7 @@ Default invocation is REAL LIVE. `--mock-ok` is an explicit opt-out for offline 
 - `embassy_ted::{LiveTedProvider, TedRequest::{Lookup, SearchByCountry, SearchByBuyerName}, ProcurementNotice}`
 - `manifold::HttpFetchProvider`, `WebFetchRequest::with_body` (POST), `manifold::xml` (SOAP via vies pattern), `manifold::pagination::paginate` (TED cursor walk)
 
-See [Capability Matrix → Embassy](../../../mosaic-extensions/kb/Capability%20Matrix.md#embassy--named-source-observation) for the full surface.
+See [Capability Matrix → Embassy](../../../stack/mosaic-extensions/kb/Capability%20Matrix.md#embassy--named-source-observation) for the full surface.
 
 ## Why this crate lives in arena-tests, not atelier-showcase
 

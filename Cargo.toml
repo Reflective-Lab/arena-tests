@@ -7,14 +7,14 @@ members = [
 ]
 
 [workspace.package]
-version = "0.1.0"
+version = "0.1.1"
 edition = "2024"
 rust-version = "1.94"
 license = "MIT"
 publish = false
 
 [workspace.dependencies]
-# Platform under test — local paths (workspace floor at 3.8.1 / 1.5.0 / 0.7.0).
+# Platform under test — local paths from the checked-out stack.
 converge-core         = { path = "../bedrock-platform/converge/crates/core" }
 converge-pack         = { path = "../bedrock-platform/converge/crates/pack" }
 converge-kernel       = { path = "../bedrock-platform/converge/crates/kernel" }

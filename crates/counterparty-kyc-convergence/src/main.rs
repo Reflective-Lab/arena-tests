@@ -8,7 +8,7 @@
 //!
 //! ## REAL-by-default declaration
 //!
-//! Per `~/dev/reflective/stack/mosaic-extensions/kb/Standards/Real-by-Default Connections.md`:
+//! Per `~/dev/reflective/mosaic-extensions/kb/Standards/Real-by-Default Connections.md`:
 //!
 //! - **GLEIF identity lookup** — `CONTRACT-SHAPE` today. Embassy
 //!   `gleif` ships only `StubGleifProvider`; a live HTTP provider
@@ -66,7 +66,7 @@ use embassy_ted::{LiveTedProvider, StubTedProvider, TedProvider, TedRequest};
     long_about = "REAL connections are the default. Embassy ports ship stub-only \
 today; this scenario refuses to run without --mock-ok until a live \
 provider lands. See \
-~/dev/reflective/stack/mosaic-extensions/kb/Standards/Real-by-Default \
+~/dev/reflective/mosaic-extensions/kb/Standards/Real-by-Default \
 Connections.md for the doctrine."
 )]
 struct Cli {
