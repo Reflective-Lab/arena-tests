@@ -53,9 +53,7 @@ use embassy_eu_sanctions::{
     EuSanctionsProvider, EuSanctionsRequest, LiveEuSanctionsProvider, StubEuSanctionsProvider,
 };
 use embassy_gleif::{GleifProvider, GleifRequest, Lei, LiveGleifProvider, StubGleifProvider};
-use embassy_ofac_sls::{
-    LiveOfacSlsProvider, OfacSlsProvider, OfacSlsRequest, StubOfacSlsProvider,
-};
+use embassy_ofac_sls::{LiveOfacSlsProvider, OfacSlsProvider, OfacSlsRequest, StubOfacSlsProvider};
 use embassy_pack::{CallContext, SanctionsSubject};
 use embassy_ted::{LiveTedProvider, StubTedProvider, TedProvider, TedRequest};
 
@@ -161,9 +159,7 @@ async fn run_smoke_test() -> Result<(), Box<dyn std::error::Error>> {
         .first()
         .map(|o| o.content.legal_name.as_str())
         .unwrap_or("(no record)");
-    println!(
-        "  ✓ GLEIF         live_gleif         → identity: {entity_name}"
-    );
+    println!("  ✓ GLEIF         live_gleif         → identity: {entity_name}");
     providers_ok += 1;
 
     // 2 — OFAC SDN
@@ -240,7 +236,11 @@ async fn run_smoke_test() -> Result<(), Box<dyn std::error::Error>> {
     println!(
         "Identity:        verified (GLEIF returned {n} record{plural})",
         n = gleif_resp.records.len(),
-        plural = if gleif_resp.records.len() == 1 { "" } else { "s" }
+        plural = if gleif_resp.records.len() == 1 {
+            ""
+        } else {
+            "s"
+        }
     );
     println!(
         "Sanctions:       {sanctions_lists_hit} of 3 lists hit (OFAC SDN, EU FSF, Commerce CSL)"
@@ -356,8 +356,8 @@ async fn run_scenario(cli: &Cli) -> Result<(), Box<dyn std::error::Error>> {
 
     // ───────────────── Step 2: sanctions screening (3 sources) ───────
     println!();
-    let subject = SanctionsSubject::parse(&cli.counterparty)
-        .map_err(|e| format!("invalid subject: {e}"))?;
+    let subject =
+        SanctionsSubject::parse(&cli.counterparty).map_err(|e| format!("invalid subject: {e}"))?;
 
     // ----- 2a: OFAC -----
     let ofac_header = if cli.mock_ok {
@@ -372,11 +372,17 @@ async fn run_scenario(cli: &Cli) -> Result<(), Box<dyn std::error::Error>> {
     let ofac_response: embassy_ofac_sls::OfacSlsResponse = if cli.mock_ok {
         StubOfacSlsProvider.screen(&ofac_request, &ctx).await?
     } else {
-        LiveOfacSlsProvider::new().screen(&ofac_request, &ctx).await?
+        LiveOfacSlsProvider::new()
+            .screen(&ofac_request, &ctx)
+            .await?
     };
     let ofac_hit = report_sanctions_hits(
         "OFAC",
-        &ofac_response.records.iter().map(|o| &o.content).collect::<Vec<_>>(),
+        &ofac_response
+            .records
+            .iter()
+            .map(|o| &o.content)
+            .collect::<Vec<_>>(),
         &mut |s| record_step(s),
     );
 
@@ -394,11 +400,17 @@ async fn run_scenario(cli: &Cli) -> Result<(), Box<dyn std::error::Error>> {
     let eu_response: embassy_eu_sanctions::EuSanctionsResponse = if cli.mock_ok {
         StubEuSanctionsProvider.screen(&eu_request, &ctx).await?
     } else {
-        LiveEuSanctionsProvider::new().screen(&eu_request, &ctx).await?
+        LiveEuSanctionsProvider::new()
+            .screen(&eu_request, &ctx)
+            .await?
     };
     let eu_hit = report_sanctions_hits(
         "EU",
-        &eu_response.records.iter().map(|o| &o.content).collect::<Vec<_>>(),
+        &eu_response
+            .records
+            .iter()
+            .map(|o| &o.content)
+            .collect::<Vec<_>>(),
         &mut |s| record_step(s),
     );
 
@@ -449,7 +461,10 @@ async fn run_scenario(cli: &Cli) -> Result<(), Box<dyn std::error::Error>> {
         LiveTedProvider::new().lookup(&ted_request, &ctx).await?
     };
     if ted_response.records.is_empty() {
-        println!("  no TED procurement notices for buyer-name='{}'", cli.counterparty);
+        println!(
+            "  no TED procurement notices for buyer-name='{}'",
+            cli.counterparty
+        );
         record_step(&format!(
             "enrichment: TED 0 notices for '{}'",
             cli.counterparty

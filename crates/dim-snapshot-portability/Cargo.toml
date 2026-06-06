@@ -1,0 +1,14 @@
+[package]
+name = "dim-snapshot-portability"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish = false
+description = "Arena-tests quality dimension: snapshot-portability."
+
+[dependencies]
+arena-metrics = { workspace = true }
+
+[lints]
+workspace = true

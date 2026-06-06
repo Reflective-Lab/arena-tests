@@ -1,0 +1,32 @@
+[package]
+name = "arena-driver"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish = false
+description = "Driver for arena-tests quality dimensions."
+
+[lib]
+path = "src/lib.rs"
+
+[[bin]]
+name = "arena"
+path = "src/main.rs"
+
+[dependencies]
+anyhow = { workspace = true }
+chrono = { workspace = true }
+serde_json = { workspace = true }
+arena-metrics = { workspace = true }
+dim-hermeticity = { workspace = true }
+dim-semver = { workspace = true }
+dim-layering = { workspace = true }
+dim-snapshot-portability = { workspace = true }
+dim-determinism = { workspace = true }
+dim-coverage = { workspace = true }
+dim-crate-footprint = { workspace = true }
+dim-performance = { workspace = true }
+
+[lints]
+workspace = true

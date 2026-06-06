@@ -1,9 +1,25 @@
 [workspace]
 resolver = "2"
 members = [
+    # Cross-extension contract cases (pre-existing; runnable as `cargo test`).
     "crates/counterparty-kyc-convergence",
     "crates/cross-extension-smoke",
     "crates/intent-cases",
+
+    # Quality validator framework (new).
+    "crates/arena-metrics",
+    "crates/arena-driver",
+
+    # Quality dimensions (new). Each crate implements one dimension behind a
+    # uniform Dimension trait. Stubs return Skip until implemented.
+    "crates/dim-hermeticity",
+    "crates/dim-semver",
+    "crates/dim-layering",
+    "crates/dim-snapshot-portability",
+    "crates/dim-determinism",
+    "crates/dim-coverage",
+    "crates/dim-crate-footprint",
+    "crates/dim-performance",
 ]
 
 [workspace.package]
@@ -42,6 +58,17 @@ anyhow   = "1"
 serde    = { version = "1", features = ["derive"] }
 serde_json = "1"
 chrono = { version = "0.4", features = ["serde"] }
+
+# Quality validator shared crates.
+arena-metrics            = { path = "crates/arena-metrics" }
+dim-hermeticity          = { path = "crates/dim-hermeticity" }
+dim-semver               = { path = "crates/dim-semver" }
+dim-layering             = { path = "crates/dim-layering" }
+dim-snapshot-portability = { path = "crates/dim-snapshot-portability" }
+dim-determinism          = { path = "crates/dim-determinism" }
+dim-coverage             = { path = "crates/dim-coverage" }
+dim-crate-footprint      = { path = "crates/dim-crate-footprint" }
+dim-performance          = { path = "crates/dim-performance" }
 
 [workspace.lints.rust]
 unsafe_code = "forbid"
