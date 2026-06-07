@@ -4,6 +4,12 @@ Cross-extension integration and arena tests for the Reflective stack. This repo
 wires Bedrock and Mosaic crates together in one test-only workspace, so it can
 catch regressions and composition gaps that single-repo tests miss.
 
+## Boundary
+
+> Owns: cross-extension integration + contract-shape pressure tests. **Test code only** (`publish = false` everywhere) — provides the dependency-direction firewall (Bedrock must not depend on Mosaic). Does NOT own: any production code; CI for Bedrock or Mosaic themselves.
+
+— Canonical claim: [Arena Tests](https://github.com/Reflective-Lab/reflective/blob/main/KB/04-architecture/current-system-map.md#arena-tests) in the boundary registry. Update there first; this README quotes that source.
+
 ## Why this lives here, not in Bedrock or Mosaic
 
 Bedrock crates must not depend on Mosaic extensions. Putting cross-extension
