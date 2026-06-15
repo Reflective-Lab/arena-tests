@@ -1,0 +1,127 @@
+{
+  "manifest_version": "intent-codec-applet.v1",
+  "job_name": "Activate paid subscription",
+  "primary_job_key": "activate-subscription",
+  "status": "code-backed",
+  "trigger": "subscription_activation_requested",
+  "current_workaround": "Billing or RevOps manually checks payment, plan, entitlements, and opening balance before enabling customer access.",
+  "functional_need": {
+    "outcome": "Turn an agreed commercial plan into active subscription, entitlement, and auditable opening financial state.",
+    "inputs": [
+      "organization_id",
+      "subscription_id",
+      "catalog_item_id",
+      "payment_confirmed"
+    ],
+    "output": "Active subscription with derived entitlements and a projected activation receipt.",
+    "constraints": [
+      "payment_confirmed_required",
+      "single_organization_scope",
+      "standard_plan_terms_or_escalate"
+    ],
+    "success_signal": "Subscription activates with projected entitlement state and no manual approval required."
+  },
+  "emotional_need": {
+    "operator_anxiety": "Avoid customer embarrassment from paid-but-locked access or premature access before terms are trustworthy.",
+    "desired_confidence": "Operator trusts the activation reflects confirmed payment and the correct plan.",
+    "tolerance": "No tolerance for granting access without confirmed payment."
+  },
+  "relational_need": {
+    "dependent_parties": [
+      "customer admin",
+      "support",
+      "finance",
+      "RevOps",
+      "partner owner"
+    ],
+    "trust_obligation": "All parties see the same explainable activation state.",
+    "handoff_created": "Activation receipt with entitlement state and workflow or approval IDs."
+  },
+  "failure_modes": [
+    "grant_entitlement_without_payment_confirmation",
+    "activate_wrong_organization_subscription",
+    "store_provider_id_as_canonical_entitlement",
+    "hide_activation_exception_in_app_state"
+  ],
+  "authority": {
+    "requester": "commerce/runtime subscription activation envelope",
+    "approvers": [
+      "commerce policy",
+      "billing operator for blocked activation"
+    ],
+    "allowed_actions": [
+      "activate_subscription",
+      "derive_entitlements",
+      "open_approval_workflow",
+      "project_activation_receipt"
+    ],
+    "forbidden_actions": [
+      "grant_without_payment_confirmation",
+      "own_provider_reconciliation",
+      "bypass_helm_approval"
+    ],
+    "approval_points": [
+      "payment_missing_or_false",
+      "non_standard_plan_terms"
+    ],
+    "reversibility": "partially_reversible",
+    "expiry": "payment_or_activation_event_replay_window",
+    "audit_visibility": [
+      "operator",
+      "finance",
+      "partner owner"
+    ]
+  },
+  "evidence_contract": {
+    "required_sources": [
+      {
+        "source": "Commerce Rails verified subscription contract",
+        "freshness": "current_at_activation_time",
+        "authority": "primary"
+      },
+      {
+        "source": "runtime or commerce payment confirmation envelope",
+        "freshness": "within_replay_window",
+        "authority": "primary"
+      },
+      {
+        "source": "catalog plan definition",
+        "freshness": "current_at_activation_time",
+        "authority": "primary"
+      }
+    ],
+    "disallowed_sources": [
+      "unverified_provider_dashboard_screenshot",
+      "operator_recollection"
+    ],
+    "confidence_floor": "primary_evidence_required",
+    "conflict_policy": "stop",
+    "sensitive_fields": [
+      "payment_confirmed",
+      "organization_id"
+    ]
+  },
+  "runtime_needs": [
+    "normalized_event_ingress",
+    "provider_secret_handling_outside_applet",
+    "activation_telemetry",
+    "durable_workflow_references"
+  ],
+  "commercial_needs": [
+    "subscription_lifecycle_state",
+    "catalog_plan_resolution",
+    "entitlement_grant",
+    "opening_ledger_context",
+    "provider_reconciliation_outside_applet"
+  ],
+  "projection": {
+    "operator_view": "operator sees subscription, plan, activation state, entitlements, workflow or approval IDs, and stop reason",
+    "customer_or_partner_view": "customer sees subscription active with the entitlements they purchased"
+  },
+  "non_goals": [
+    "billing_dashboard",
+    "provider_verification",
+    "canonical_entitlement_store",
+    "unrelated_billing_jobs"
+  ]
+}

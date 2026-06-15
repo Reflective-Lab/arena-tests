@@ -1,0 +1,129 @@
+{
+  "manifest_version": "intent-codec-applet.v1",
+  "job_name": "Refill prepaid AI credits",
+  "primary_job_key": "refill-prepaid-ai-credits",
+  "status": "code-backed",
+  "trigger": "prepaid_top_up_settled",
+  "current_workaround": "A billing operator manually confirms payment and updates prepaid usage balance.",
+  "functional_need": {
+    "outcome": "Apply a settled top-up to prepaid AI credit balances with financial traceability.",
+    "inputs": [
+      "organization_id",
+      "subscription_id",
+      "amount_minor",
+      "currency_code",
+      "payment_reference",
+      "payment_status"
+    ],
+    "output": "Ledger-backed credit grant and increased entitlement balance for the correct account.",
+    "constraints": [
+      "confirmed_payment_required",
+      "single_subscription_scope",
+      "ledger_traceability_required"
+    ],
+    "success_signal": "Confirmed top-up appears as a ledger-backed credit grant and entitlement balance increases for the correct account."
+  },
+  "emotional_need": {
+    "operator_anxiety": "Avoid service interruption from stale balance while preventing credit grants for risky or unsettled payment.",
+    "desired_confidence": "Operator trusts the balance change reflects a settled, traceable payment.",
+    "tolerance": "No tolerance for granting credit on pending or risky payment."
+  },
+  "relational_need": {
+    "dependent_parties": [
+      "customer admin",
+      "finance",
+      "support",
+      "runtime metering",
+      "partner owner"
+    ],
+    "trust_obligation": "All parties see an explainable balance change tied to a settled payment.",
+    "handoff_created": "Credit receipt with ledger entry and entitlement balance change."
+  },
+  "failure_modes": [
+    "grant_credit_without_confirmed_payment",
+    "increase_wrong_subscription_balance",
+    "lose_payment_to_ledger_traceability",
+    "hide_risk_review_in_app_state"
+  ],
+  "authority": {
+    "requester": "commerce/runtime prepaid top-up envelope",
+    "approvers": [
+      "commerce policy",
+      "billing operator for risky top-up"
+    ],
+    "allowed_actions": [
+      "grant_prepaid_credit",
+      "append_ledger_entry",
+      "open_approval_workflow",
+      "project_credit_receipt"
+    ],
+    "forbidden_actions": [
+      "grant_pending_payment",
+      "own_provider_reconciliation",
+      "bypass_risk_review"
+    ],
+    "approval_points": [
+      "pending_payment",
+      "unusual_top_up_size_or_risk_signal"
+    ],
+    "reversibility": "partially_reversible",
+    "expiry": "payment_event_replay_window",
+    "audit_visibility": [
+      "operator",
+      "finance",
+      "partner owner"
+    ]
+  },
+  "evidence_contract": {
+    "required_sources": [
+      {
+        "source": "Commerce Rails verified top-up event",
+        "freshness": "within_replay_window",
+        "authority": "primary"
+      },
+      {
+        "source": "active subscription commercial commitment",
+        "freshness": "current_at_top_up_time",
+        "authority": "primary"
+      },
+      {
+        "source": "ledger credit grant receipt",
+        "freshness": "created_during_truth_execution",
+        "authority": "primary"
+      }
+    ],
+    "disallowed_sources": [
+      "unsettled_payment_intent",
+      "operator_recollection"
+    ],
+    "confidence_floor": "primary_evidence_required",
+    "conflict_policy": "stop",
+    "sensitive_fields": [
+      "payment_reference",
+      "organization_id"
+    ]
+  },
+  "runtime_needs": [
+    "normalized_top_up_ingress",
+    "provider_secret_handling_outside_applet",
+    "balance_change_telemetry",
+    "durable_ledger_reference"
+  ],
+  "commercial_needs": [
+    "payment_settlement_state",
+    "subscription_commitment",
+    "credit_entitlement_balance",
+    "ledger_credit_grant",
+    "provider_reconciliation_outside_applet"
+  ],
+  "projection": {
+    "operator_view": "operator sees payment status, grant amount, subscription, credit entitlement, ledger entry, and stop reason",
+    "customer_or_partner_view": "customer sees their prepaid AI credit balance increased by the settled top-up"
+  },
+  "non_goals": [
+    "usage_metering_engine",
+    "provider_verification",
+    "canonical_credit_store",
+    "subscription_activation"
+  ]
+}

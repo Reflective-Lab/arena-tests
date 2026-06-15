@@ -45,37 +45,48 @@ cargo test -p cross-extension-smoke
 
 ## Cursor Cloud specific instructions
 
-This workspace is a thin test/validator harness that depends on a whole sibling
-checkout of the Reflective stack. The non-obvious parts of running it here:
+`arena-tests` is a thin harness over a full sibling checkout of the Reflective
+stack. Run everything from `/workspace`:
 
-- **Sibling repos resolve from the filesystem root.** `Cargo.toml`'s path deps
-  and `[patch.crates-io]` use `../bedrock-platform`, `../mosaic-extensions`,
-  `../atelier-showcase`. Because this repo is checked out at `/workspace`, those
-  resolve to `/bedrock-platform/{converge,organism,helms}`,
-  `/mosaic-extensions/{arbiter-policy,mnemos-knowledge,prism-analytics,manifold-adapters,embassy-ports}`,
-  and `/atelier-showcase`. These are separate GitHub repos under
-  `Reflective-Lab` cloned into those container dirs. They are provisioned in the
-  VM snapshot, not in this repo — **any** `cargo` command fails to even resolve
-  until they exist (eager `[patch.crates-io]`). If they are missing, re-clone the
-  `Reflective-Lab` repos into those paths.
-- **The `arena` CLI needs a workspace-root marker.** It walks up from the cwd
-  looking for `MASTERPLAN.md` + `KB/` to find the "reflective workspace root".
-  In this layout the root is `/`, where stand-in `MASTERPLAN.md` and `KB/` are
-  provisioned (snapshot). Run `cargo run --bin arena -- report` (or
-  `./target/debug/arena report`) from anywhere under `/workspace`. All quality
-  dimensions are stubs today, so the scoreboard reports `SKIP`/aggregate `PASS`.
-- **`intent_codec_applets` smoke test compiles in external KB data.** It uses
-  `include_str!(".../KB/02-product/applets/*.intent.json")`, resolving to
-  `/KB/02-product/applets/`. Those manifests live in the (separate, not always
-  accessible) reflective KB monorepo; stand-in fixtures are provisioned at
-  `/KB/...` in the snapshot. If the suite fails to compile with
-  `couldn't read .../KB/...`, that data is missing.
-- **Toolchain** is pinned to `1.96.0` (edition 2024) via `rust-toolchain.toml`.
-- **`just` is not installed.** Run the underlying cargo commands directly (see
-  `Justfile` / `README.md`): `cargo test --workspace`,
-  `cargo clippy --workspace --all-targets -- -D warnings`, `cargo fmt --check`.
-  The "patch ... was not used in the crate graph" warnings during build/clippy
-  are expected (the patch table is a superset of what the test members pull).
-- **`counterparty-kyc-convergence` is live-by-default** and exits non-zero
-  without `--mock-ok`. Use `cargo run -p arena-counterparty-kyc-convergence --
-  --mock-ok` for an offline, deterministic end-to-end run.
+| Task | Command |
+|------|---------|
+| Test (primary validation) | `cargo test --workspace` |
+| Lint | `cargo clippy --workspace --all-targets -- -D warnings` |
+| Format check | `cargo fmt --check` |
+| Run the `arena` validator | `cargo run --bin arena -- report` |
+| Run the KYC arena (offline) | `cargo run -p arena-counterparty-kyc-convergence -- --mock-ok` |
+
+Notes that save time:
+
+- `just` is **not** installed — use the cargo commands above (the `Justfile`
+  only wraps them). Toolchain is pinned to `1.96.0` / edition 2024 via
+  `rust-toolchain.toml`.
+- `patch ... was not used in the crate graph` warnings are expected (the
+  `[patch.crates-io]` table is a superset of what the test members pull).
+- The `arena` dimensions are all stubs today, so `arena report` prints
+  `SKIP`/aggregate `PASS` — that is the healthy result, not a failure.
+
+### Out-of-repo provisioning (one command if missing)
+
+This repo does **not** track three things it needs at runtime, all of which
+normally persist in the VM snapshot:
+
+1. Sibling repos at the filesystem root (parent of `/workspace`), because
+   `Cargo.toml` path deps + eager `[patch.crates-io]` resolve there — so **no
+   cargo command resolves until they exist**:
+   `/bedrock-platform/{converge,organism,helms}`,
+   `/mosaic-extensions/{arbiter-policy,mnemos-knowledge,prism-analytics,manifold-adapters,embassy-ports}`,
+   `/atelier-showcase`.
+2. `/MASTERPLAN.md` + `/KB/` — the marker the `arena` CLI walks up to find ("could
+   not locate reflective workspace root" means this is missing).
+3. `/KB/02-product/applets/*.intent.json` — manifests the `intent_codec_applets`
+   smoke test `include_str!`s (`couldn't read .../KB/...` means these are
+   missing). The canonical reflective KB monorepo is not reachable here, so
+   tracked stand-ins live in [`bootstrap/KB/`](bootstrap/KB) and mirror
+   `crates/intent-cases/src/lib.rs::APPLET_CASES`.
+
+If any of the above is missing on a fresh VM, restore it all idempotently with:
+
+```bash
+bash bootstrap/restore-env.sh
+```
