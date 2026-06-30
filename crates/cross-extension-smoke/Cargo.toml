@@ -12,16 +12,22 @@ path = "src/lib.rs"
 [dev-dependencies]
 arbiter            = { package = "converge-arbiter-policy", path = "../../../mosaic-extensions/arbiter-policy/crates/arbiter", features = ["analysis"] }
 arena-intent-cases = { workspace = true }
+arena-multi-user-consensus = { workspace = true }
+converge-atelier-domain = { workspace = true }
 chrono             = { workspace = true }
+application-storage = { workspace = true }
 converge-core      = { workspace = true }
 converge-kernel    = { workspace = true }
 converge-pack      = { workspace = true }
+helm-module-contracts = { workspace = true }
+helm-operator-control = { workspace = true }
 prism              = { workspace = true }
 organism-intent    = { workspace = true }
 organism-pack      = { workspace = true }
 organism-planning  = { workspace = true }
 organism-runtime   = { workspace = true }
 prio-agent-ops     = { workspace = true }
+scenario-helm-coordination-headless = { workspace = true }
 serde              = { workspace = true }
 serde_json         = { workspace = true }
 tokio              = { workspace = true }

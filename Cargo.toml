@@ -5,6 +5,7 @@ members = [
     "crates/counterparty-kyc-convergence",
     "crates/cross-extension-smoke",
     "crates/intent-cases",
+    "crates/multi-user-consensus",
 
     # Quality validator framework (new).
     "crates/arena-metrics",
@@ -45,12 +46,17 @@ converge-mnemos-knowledge = { path = "../mosaic-extensions/mnemos-knowledge/crat
 converge-prism-analytics  = { path = "../mosaic-extensions/prism-analytics/crates/prism" }
 prism                     = { package = "converge-prism-analytics", path = "../mosaic-extensions/prism-analytics/crates/prism" }
 converge-atelier-domain   = { path = "../atelier-showcase/crates/atelier-domain" }
+scenario-helm-coordination-headless = { path = "../atelier-showcase/scenarios/helm-coordination-headless" }
 organism-pack             = { path = "../bedrock-platform/organism/crates/pack" }
 organism-intent           = { path = "../bedrock-platform/organism/crates/intent" }
 organism-planning         = { path = "../bedrock-platform/organism/crates/planning" }
 organism-runtime          = { path = "../bedrock-platform/organism/crates/runtime" }
+application-storage       = { path = "../bedrock-platform/helms/crates/application-storage" }
+helm-module-contracts     = { path = "../bedrock-platform/helms/crates/helm-module-contracts" }
+helm-operator-control     = { path = "../bedrock-platform/helms/crates/helm-operator-control" }
 prio-agent-ops            = { path = "../bedrock-platform/helms/crates/prio-agent-ops" }
 arena-intent-cases        = { path = "crates/intent-cases" }
+arena-multi-user-consensus = { path = "crates/multi-user-consensus" }
 
 # Test utilities
 tokio    = { version = "1", features = ["full"] }
